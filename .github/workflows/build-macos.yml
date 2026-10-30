@@ -121,9 +121,25 @@ jobs:
         working-directory: source
         run: npm test
 
-      - name: Build unsigned installers without publishing
+      # Without a Developer ID certificate, ad-hoc sign the whole bundle. An unsigned bundle whose
+      # Electron signature was broken by packaging is reported by Gatekeeper as "damaged".
+      # Hardened runtime stays off: with no Team ID it would reject the bundled ad-hoc libraries.
+      - name: Build ad-hoc signed installers without publishing
         working-directory: source
-        run: npm run dist -- --publish never --${{ matrix.arch }}
+        run: npm run dist -- --publish never --${{ matrix.arch }} -c.mac.identity=- -c.mac.hardenedRuntime=false
+
+      - name: Verify the app's code signature
+        working-directory: source
+        run: |
+          set -euo pipefail
+          app="$(find release -maxdepth 2 -name Geovoya.app -type d | head -n 1)"
+          codesign --verify --deep --strict --verbose=2 "${app}"
+          codesign -dv "${app}" 2>&1 | grep -E 'Signature=|Identifier=|flags='
+          dmg="$(ls release/*.dmg | head -n 1)"
+          mnt="$(mktemp -d)"
+          hdiutil attach -nobrowse -readonly -mountpoint "${mnt}" "${dmg}"
+          codesign --verify --deep --strict --verbose=2 "${mnt}/Geovoya.app"
+          hdiutil detach "${mnt}"
 
       - name: Upload installer artifacts
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
