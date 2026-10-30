@@ -16,20 +16,6 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  check-published-0-3-0:
-    name: check published 0.3.0 arm64 signature
-    runs-on: macos-15
-    steps:
-      - name: Verify the signature in the published 0.3.0 DMG
-        run: |
-          set -uo pipefail
-          curl --fail -sSL -o g.dmg https://downloads.geovoya.com/releases/0.3.0/Geovoya-0.3.0-mac-arm64.dmg
-          shasum -a 256 g.dmg
-          mnt="$(mktemp -d)"
-          hdiutil attach -nobrowse -readonly -mountpoint "${mnt}" g.dmg
-          codesign -dv "${mnt}/Geovoya.app" 2>&1 | grep -E 'Signature=|Identifier=|flags=' || true
-          codesign --verify --deep --strict --verbose=2 "${mnt}/Geovoya.app"; echo "codesign exit $?"
-
   package:
     name: macos-${{ matrix.arch }}
     runs-on: ${{ matrix.runner }}
